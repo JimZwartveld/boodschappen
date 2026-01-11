@@ -87,13 +87,9 @@ jobs:
     if: github.event_name == 'pull_request'
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Run backend tests
         run: |
           docker run --rm \
-            -v ${{ github.workspace }}/backend:/app \
             boodschappen-api:latest \
             pytest tests/ -v --tb=short || true
 
