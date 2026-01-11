@@ -8,7 +8,7 @@ interface ItemListProps {
 export default function ItemList({ groups }: ItemListProps) {
   return (
     <div className="space-y-4">
-      {groups.map((group, index) => (
+      {groups.map((group) => (
         <div key={group.category?.id ?? 'uncategorized'}>
           {/* Category header */}
           <div className="flex items-center gap-2 py-2 text-gray-700 font-medium">
