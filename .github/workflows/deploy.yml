@@ -47,11 +47,6 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Create data directory if not exists
-        run: |
-          mkdir -p /apps/boodschappen/data
-          chmod 755 /apps/boodschappen/data
-
       - name: Stop existing services
         run: docker-compose -f docker-compose.yml down || true
 
