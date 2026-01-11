@@ -21,6 +21,9 @@ services:
       - API_TOKEN=${API_TOKEN:-}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Albert Heijn integration
+      - AH_EMAIL=${AH_EMAIL:-}
+      - AH_PASSWORD=${AH_PASSWORD:-}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

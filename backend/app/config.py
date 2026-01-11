@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     # App
     api_base_url: str = "http://localhost:8000"
 
+    # Albert Heijn integration
+    ah_email: str = ""
+    ah_password: str = ""
+
     class Config:
         env_file = ".env"
         extra = "ignore"
