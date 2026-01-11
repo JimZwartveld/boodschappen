@@ -44,6 +44,14 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Using version: $VERSION"
 
+      - name: Debug - List files
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Files in root:"
+          ls -la
+          echo "Files in backend/:"
+          ls -la backend/ || echo "backend/ not found"
+
       - name: Build backend image
         run: |
           docker build \
