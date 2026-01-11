@@ -2,7 +2,13 @@
 
 ## Overview
 
-A self-hosted master groceries list service with iOS Siri/Shortcuts integration, MCP support for ChatGPT, and per-store exports. Primary access via Tailscale with optional public exposure via Cloudflare Tunnel.
+A self-hosted master groceries list service with iOS Siri/Shortcuts integration, MCP support for ChatGPT, and per-store exports.
+
+**Key Details:**
+- **Language**: Dutch (Nederlands) UI
+- **Domain**: `boodschappen.jimzwartveld.com`
+- **Design**: Mobile-first (optimized for iPhone)
+- **Access**: Cloudflare Tunnel (public) + Tailscale (internal)
 
 ---
 
@@ -18,15 +24,17 @@ A self-hosted master groceries list service with iOS Siri/Shortcuts integration,
 ### Frontend
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite
-- **Styling**: Tailwind CSS
+- **Styling**: Tailwind CSS (mobile-first)
 - **State**: React Query (TanStack Query)
 - **PWA**: Vite PWA plugin
+- **Language**: Dutch (hardcoded, no i18n needed)
 
 ### Infrastructure
 - **Container**: Docker with multi-stage builds
 - **Orchestration**: Docker Compose
 - **CI/CD**: GitHub Actions (self-hosted runner)
-- **Network**: Tailscale (primary), Cloudflare Tunnel (optional)
+- **Domain**: `boodschappen.jimzwartveld.com` via Cloudflare Tunnel
+- **Network**: Tailscale (internal) + Cloudflare Tunnel (public)
 
 ---
 
@@ -174,38 +182,57 @@ boodschappen/
    - Apply close policies (keep_open, snooze, remove)
 
 ### Phase 3: Web UI
-**Goal**: Mobile-friendly PWA for list management
+**Goal**: Mobile-first Dutch PWA for list management
 
 1. **Project Setup**
    - React + Vite + TypeScript
-   - Tailwind CSS configuration
+   - Tailwind CSS with mobile-first breakpoints
    - PWA manifest and service worker
+   - All UI text in Dutch
 
-2. **Components**
+2. **Dutch UI Text**
+   ```
+   Boodschappenlijst          (Grocery List)
+   Toevoegen                  (Add)
+   Afvinken                   (Check off)
+   Verwijderen                (Delete)
+   Exporteren naar AH         (Export to AH)
+   Exporteren naar Jumbo      (Export to Jumbo)
+   Categorie                  (Category)
+   Aantal                     (Quantity)
+   Notities                   (Notes)
+   Opslaan                    (Save)
+   Annuleren                  (Cancel)
+   ```
+
+3. **Components**
    - Item list grouped by category (with icons)
-   - Uncategorized items section at bottom
+   - Uncategorized items section ("Zonder categorie")
    - Collapsible category sections
    - Checkbox interaction (immediate update)
    - Inline edit (quantity, notes, category)
    - Add item form with optional category picker
    - Export buttons (AH/Jumbo)
-   - Session history view
+   - Session history view ("Sessiegeschiedenis")
 
-3. **Category UI Features**
-   - Items grouped under category headers with emoji icons
-   - Drag-and-drop to change category (optional)
-   - Quick category assignment via long-press/swipe
+4. **Category UI Features**
+   - Items grouped under Dutch category headers with emoji
+   - Quick category assignment via tap
    - Filter view by category
 
-4. **API Integration**
+5. **API Integration**
    - React Query for data fetching
    - Optimistic updates for checkboxes
-   - Error handling and offline states
+   - Error handling with Dutch messages
 
-5. **Mobile Optimization**
-   - Large tap targets
-   - Swipe gestures (optional)
+6. **Mobile-First Design (iPhone optimized)**
+   - Touch-friendly: min 44px tap targets
+   - Bottom navigation for thumb access
+   - Full-width inputs and buttons
+   - No hover states (touch only)
+   - Safe area insets for notch/home indicator
    - Pull-to-refresh
+   - Viewport: 375px base (iPhone SE/mini)
 
 ### Phase 4: iOS Shortcuts Integration
 **Goal**: Voice-activated list management via Siri
@@ -447,19 +474,25 @@ Flow:
 
 ### Network Topology
 ```
-┌─────────────────────────────────────────────────────────────┐
+                    ┌──────────────────────┐
+                    │  Cloudflare Tunnel   │
+                    │  boodschappen.       │
+                    │  jimzwartveld.com    │
+                    └──────────┬───────────┘
+                               │ HTTPS
+┌──────────────────────────────┼──────────────────────────────┐
 │                     Home Server                              │
-│  ┌─────────────────┐  ┌─────────────────┐                   │
-│  │ groceries-api   │  │ groceries-ui    │                   │
+│                              │                               │
+│  ┌─────────────────┐  ┌──────┴──────────┐                   │
+│  │ boodschappen-api│  │ boodschappen-ui │                   │
 │  │ (FastAPI)       │←─│ (nginx/static)  │                   │
-│  │ :8000           │  │ :80             │                   │
+│  │ :8002           │  │ :3082           │                   │
 │  └────────┬────────┘  └────────┬────────┘                   │
 │           │                    │                             │
 │           └──────────┬─────────┘                             │
 │                      │                                       │
 │              ┌───────┴───────┐                               │
-│              │   Tailscale   │                               │
-│              │   (MagicDNS)  │                               │
+│              │   Tailscale   │ (internal access)             │
 │              └───────┬───────┘                               │
 └──────────────────────┼──────────────────────────────────────┘
                        │
@@ -467,9 +500,15 @@ Flow:
         │                             │
    ┌────┴────┐                  ┌─────┴─────┐
    │ iPhone  │                  │  HomePod  │
-   │ (Jim)   │                  │ (Siri)    │
+   │ Safari  │                  │ (Siri)    │
    └─────────┘                  └───────────┘
 ```
+
+### Domain Setup (Cloudflare Tunnel)
+1. Create tunnel: `cloudflared tunnel create boodschappen`
+2. Route domain: `cloudflared tunnel route dns boodschappen boodschappen.jimzwartveld.com`
+3. Config file points tunnel to `http://localhost:3082`
+4. Cloudflare Access (optional) for additional auth
 
 ### Docker Compose Services
 ```yaml
