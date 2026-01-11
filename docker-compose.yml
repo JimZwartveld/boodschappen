@@ -1,0 +1,70 @@
+version: "3.8"
+
+services:
+  # =============================================================================
+  # Backend API (FastAPI)
+  # =============================================================================
+  boodschappen-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: boodschappen-api:${APP_VERSION:-latest}
+    container_name: boodschappen-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistent data volume - survives container restarts and updates
+      - boodschappen-data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:///data/groceries.db
+      - API_TOKEN=${API_TOKEN:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - boodschappen-network
+
+  # =============================================================================
+  # Frontend UI (React + nginx)
+  # =============================================================================
+  boodschappen-ui:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE=/api
+    image: boodschappen-ui:${APP_VERSION:-latest}
+    container_name: boodschappen-ui
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      boodschappen-api:
+        condition: service_healthy
+    networks:
+      - boodschappen-network
+
+# =============================================================================
+# Volumes - Persistent storage
+# =============================================================================
+volumes:
+  boodschappen-data:
+    driver: local
+    # For bind mount to specific host path, uncomment:
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /opt/boodschappen/data
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  boodschappen-network:
+    driver: bridge
