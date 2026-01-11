@@ -1,0 +1,275 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Boodschappen API",
+    "description": "API voor het beheren van een boodschappenlijst. Voeg items toe, bekijk de lijst, en vink items af.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://boodschappen.jimzwartveld.com",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/api/v1/items:add": {
+      "post": {
+        "operationId": "addItems",
+        "summary": "Voeg boodschappen toe aan de lijst",
+        "description": "Voeg een of meerdere items toe aan de boodschappenlijst. Items kunnen gescheiden worden door komma's of nieuwe regels. Voorbeelden: '2 brood, melk, 500g gehakt' of '3x appels'.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["text"],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "description": "Tekst met items om toe te voegen (komma of newline gescheiden). Voorbeelden: 'brood, melk' of '2x eieren, 500g gehakt'"
+                  },
+                  "source": {
+                    "type": "string",
+                    "default": "chatgpt",
+                    "description": "Bron van het verzoek"
+                  },
+                  "preferred_store": {
+                    "type": "string",
+                    "enum": ["ah", "jumbo"],
+                    "description": "Voorkeurswinkel voor deze items (optioneel)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Items succesvol toegevoegd",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "description": "Aantal toegevoegde items"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "qty": { "type": "number" },
+                          "unit": { "type": "string", "nullable": true },
+                          "is_new": { "type": "boolean" }
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Bevestigingsbericht in het Nederlands"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items": {
+      "get": {
+        "operationId": "listItems",
+        "summary": "Bekijk de boodschappenlijst",
+        "description": "Haal alle items op van de boodschappenlijst. Filter optioneel op status.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["open", "checked", "removed"]
+            },
+            "description": "Filter op status: 'open' voor nog te kopen, 'checked' voor afgevinkt"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lijst met items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string" },
+                      "name_raw": { "type": "string", "description": "Naam van het item" },
+                      "qty": { "type": "number", "description": "Hoeveelheid" },
+                      "unit": { "type": "string", "nullable": true, "description": "Eenheid (g, kg, ml, L, etc.)" },
+                      "status": { "type": "string", "enum": ["open", "checked", "removed"] },
+                      "category": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "name_nl": { "type": "string" }
+                        }
+                      },
+                      "preferred_store": { "type": "string", "nullable": true, "enum": ["ah", "jumbo"] },
+                      "notes": { "type": "string", "nullable": true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{item_id}:check": {
+      "post": {
+        "operationId": "checkItem",
+        "summary": "Vink een item af",
+        "description": "Markeer een item als gekocht/afgevinkt.",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ID van het item"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item afgevinkt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "name_raw": { "type": "string" },
+                    "status": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{item_id}:uncheck": {
+      "post": {
+        "operationId": "uncheckItem",
+        "summary": "Zet een item terug op de lijst",
+        "description": "Markeer een afgevinkt item weer als open.",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ID van het item"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item weer open"
+          }
+        }
+      }
+    },
+    "/api/v1/items/{item_id}": {
+      "delete": {
+        "operationId": "deleteItem",
+        "summary": "Verwijder een item",
+        "description": "Verwijder een item volledig van de lijst.",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ID van het item"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item verwijderd"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateItem",
+        "summary": "Wijzig een item",
+        "description": "Pas de hoeveelheid, notities, of winkelvoorkeur van een item aan.",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ID van het item"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "qty": { "type": "number", "description": "Nieuwe hoeveelheid" },
+                  "notes": { "type": "string", "description": "Notities" },
+                  "preferred_store": { "type": "string", "enum": ["ah", "jumbo"], "description": "Voorkeurswinkel" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item gewijzigd"
+          }
+        }
+      }
+    },
+    "/api/v1/export/all": {
+      "get": {
+        "operationId": "exportList",
+        "summary": "Exporteer de boodschappenlijst als tekst",
+        "description": "Haal de volledige boodschappenlijst op als platte tekst.",
+        "parameters": [
+          {
+            "name": "simple",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "boolean", "default": true },
+            "description": "Simpele lijst zonder headers"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Boodschappenlijst als tekst",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "brood, 2 melk, eieren, 500g gehakt"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
