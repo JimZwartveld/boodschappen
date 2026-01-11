@@ -74,3 +74,17 @@ export async function exportItems(store: string): Promise<string> {
   }
   return response.text()
 }
+
+// Sync to AH
+export interface SyncResponse {
+  synced: number
+  failed: number
+  not_found: number
+  details: { item: string; status: string; ah_product?: string; error?: string }[]
+}
+
+export async function syncToAH(): Promise<SyncResponse> {
+  return fetchApi<SyncResponse>('/sync/ah', {
+    method: 'POST',
+  })
+}
