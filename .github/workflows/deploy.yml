@@ -125,7 +125,12 @@ jobs:
 
       - name: Start services
         run: |
-          docker compose -f docker-compose.yml up -d
+          # Load .env from server if exists, otherwise use defaults
+          if [ -f /opt/boodschappen/.env ]; then
+            docker compose -f docker-compose.yml --env-file /opt/boodschappen/.env up -d
+          else
+            docker compose -f docker-compose.yml up -d
+          fi
         env:
           APP_VERSION: ${{ steps.version.outputs.version }}
 
