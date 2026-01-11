@@ -68,7 +68,7 @@ export async function deleteItem(itemId: string): Promise<void> {
 
 // Export
 export async function exportItems(store: string): Promise<string> {
-  const response = await fetch(`${API_BASE}/export/${store}?format=plaintext`)
+  const response = await fetch(`${API_BASE}/export/${store}?format=plaintext&simple=true`)
   if (!response.ok) {
     throw new Error('Export mislukt')
   }

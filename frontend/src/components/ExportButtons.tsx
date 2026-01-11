@@ -10,15 +10,22 @@ export default function ExportButtons() {
     try {
       const text = await exportItems('all')
 
-      // Try clipboard API first, fall back to prompt
-      try {
-        await navigator.clipboard.writeText(text)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      } catch {
-        // Clipboard API not available, show text in prompt
-        window.prompt('Kopieer deze tekst:', text)
+      // Check if clipboard is available (requires HTTPS)
+      const isSecure = window.isSecureContext
+
+      if (isSecure && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(text)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 2000)
+          return
+        } catch {
+          // Fall through to prompt
+        }
       }
+
+      // Fallback: show prompt for manual copy
+      window.prompt('Kopieer deze tekst (selecteer alles met Ctrl+A):', text)
     } catch (error) {
       alert('Export mislukt')
     } finally {
