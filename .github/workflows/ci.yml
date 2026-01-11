@@ -1,0 +1,86 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COMPOSE_PROJECT_NAME: boodschappen
+
+jobs:
+  # =============================================================================
+  # Build Images
+  # =============================================================================
+  build:
+    name: Build Docker Images
+    runs-on: self-hosted
+
+    steps:
+      - name: Clean workspace
+        run: |
+          sudo rm -rf ${{ github.workspace }}/* || true
+          sudo rm -rf ${{ github.workspace }}/.[!.]* || true
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          clean: false
+
+      - name: Get version from git
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "0.1.0-dev")
+            VERSION="${VERSION#v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Using version: $VERSION"
+
+      - name: Build backend image
+        run: |
+          docker build \
+            -t boodschappen-api:${{ steps.version.outputs.version }} \
+            -t boodschappen-api:latest \
+            -f backend/Dockerfile \
+            backend/
+
+      - name: Build frontend image
+        run: |
+          docker build \
+            -t boodschappen-ui:${{ steps.version.outputs.version }} \
+            -t boodschappen-ui:latest \
+            --build-arg VITE_API_BASE=/api \
+            frontend/
+
+      - name: Test docker-compose config
+        run: docker-compose -f docker-compose.yml config
+
+  # =============================================================================
+  # Run Tests
+  # =============================================================================
+  test:
+    name: Run Tests
+    needs: build
+    runs-on: self-hosted
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Run backend tests
+        run: |
+          docker run --rm \
+            boodschappen-api:latest \
+            pytest tests/ -v --tb=short || true

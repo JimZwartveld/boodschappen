@@ -39,6 +39,7 @@ async def export_items(
     format: ExportFormat = Query(default=ExportFormat.PLAINTEXT),
     include_checked: bool = Query(default=False),
     include_snoozed: bool = Query(default=False),
+    simple: bool = Query(default=False, description="Simple list without headers (for Siri)"),
     db: Session = Depends(get_db),
 ):
     """Export items for a specific store."""
@@ -96,6 +97,21 @@ async def export_items(
                 for item in items
             ],
         }
+
+    # Simple format for Siri - just item names
+    if simple:
+        if not items:
+            return PlainTextResponse("Je boodschappenlijst is leeg.")
+
+        item_names = []
+        for item in items:
+            if item.qty != 1:
+                qty = int(item.qty) if item.qty == int(item.qty) else item.qty
+                item_names.append(f"{qty} {item.name_raw}")
+            else:
+                item_names.append(item.name_raw)
+
+        return PlainTextResponse(", ".join(item_names))
 
     # Plaintext format - group by category
     lines = []

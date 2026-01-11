@@ -1,108 +1,40 @@
-name: Build and Deploy Boodschappen
+name: Deploy
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*'
-  pull_request:
+  workflow_run:
+    workflows: ["CI - Build and Test"]
+    types:
+      - completed
     branches:
       - main
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   COMPOSE_PROJECT_NAME: boodschappen
 
 jobs:
   # =============================================================================
-  # Build Images (on main branch or PRs)
-  # =============================================================================
-  build:
-    name: Build Docker Images
-    runs-on: self-hosted
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Get version from git
-        id: version
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
-          else
-            VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "0.1.0-dev")
-            VERSION="${VERSION#v}"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Using version: $VERSION"
-
-      - name: Debug - List files
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Files in root:"
-          ls -la
-          echo "Files in backend/:"
-          ls -la backend/ || echo "backend/ not found"
-
-      - name: Build backend image
-        run: |
-          docker build \
-            -t boodschappen-api:${{ steps.version.outputs.version }} \
-            -t boodschappen-api:latest \
-            -f backend/Dockerfile \
-            backend/
-
-      - name: Build frontend image
-        run: |
-          docker build \
-            -t boodschappen-ui:${{ steps.version.outputs.version }} \
-            -t boodschappen-ui:latest \
-            --build-arg VITE_API_BASE=/api \
-            frontend/
-
-      - name: Test docker-compose config
-        run: docker compose -f docker-compose.yml config
-
-  # =============================================================================
-  # Run Tests
-  # =============================================================================
-  test:
-    name: Run Tests
-    needs: build
-    runs-on: self-hosted
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run backend tests
-        run: |
-          docker run --rm \
-            -v ${{ github.workspace }}/backend:/app \
-            boodschappen-api:latest \
-            pytest tests/ -v --tb=short || true
-
-  # =============================================================================
-  # Deploy (on main branch push or version tags)
+  # Deploy (only on successful CI from main branch)
   # =============================================================================
   deploy:
     name: Deploy to Production
-    needs: build
     runs-on: self-hosted
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
     steps:
+      - name: Clean workspace
+        run: |
+          sudo rm -rf ${{ github.workspace }}/* || true
+          sudo rm -rf ${{ github.workspace }}/.[!.]* || true
+
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          clean: false
 
       - name: Get version from git
         id: version
@@ -121,7 +53,7 @@ jobs:
           chmod 755 /apps/boodschappen/data
 
       - name: Stop existing services
-        run: docker compose -f docker-compose.yml down || true
+        run: docker-compose -f docker-compose.yml down || true
 
       - name: Start services
         run: |
@@ -136,7 +68,7 @@ jobs:
 
       - name: Run database migrations
         run: |
-          docker compose exec -T boodschappen-api alembic upgrade head || echo "Migrations skipped or not yet configured"
+          docker-compose exec -T boodschappen-api alembic upgrade head || echo "Migrations skipped or not yet configured"
 
       - name: Verify deployment
         run: |
@@ -144,11 +76,11 @@ jobs:
           sleep 10
 
           # Check if containers are running
-          if docker compose -f docker-compose.yml ps | grep -q "Up"; then
+          if docker-compose -f docker-compose.yml ps | grep -q "Up"; then
             echo "Services are running"
           else
             echo "Services failed to start"
-            docker compose -f docker-compose.yml logs
+            docker-compose -f docker-compose.yml logs
             exit 1
           fi
 
@@ -164,7 +96,7 @@ jobs:
 
       - name: Show service logs
         if: always()
-        run: docker compose -f docker-compose.yml logs --tail=30
+        run: docker-compose -f docker-compose.yml logs --tail=30
 
       - name: Deployment summary
         run: |
