@@ -13,6 +13,7 @@ from app.routers import (
     items_router,
     sessions_router,
     export_router,
+    sync_router,
 )
 
 settings = get_settings()
@@ -69,6 +70,7 @@ app.include_router(categories_router)
 app.include_router(items_router)
 app.include_router(sessions_router)
 app.include_router(export_router)
+app.include_router(sync_router)
 
 
 @app.get("/")

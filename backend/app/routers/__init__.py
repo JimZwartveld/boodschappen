@@ -4,6 +4,7 @@ from app.routers.categories import router as categories_router
 from app.routers.items import router as items_router
 from app.routers.sessions import router as sessions_router
 from app.routers.export import router as export_router
+from app.routers.sync import router as sync_router
 
 __all__ = [
     "health_router",
@@ -11,4 +12,5 @@ __all__ = [
     "items_router",
     "sessions_router",
     "export_router",
+    "sync_router",
 ]
