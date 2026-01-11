@@ -141,7 +141,7 @@ jobs:
 
           # Health check
           for i in {1..5}; do
-            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+            if curl -sf http://localhost:8002/health > /dev/null 2>&1; then
               echo "Health check passed"
               break
             fi
@@ -161,8 +161,8 @@ jobs:
           echo "Version: ${{ steps.version.outputs.version }}"
           echo ""
           echo "Access via Tailscale:"
-          echo "  API:  http://$(hostname):8000"
-          echo "  UI:   http://$(hostname)"
+          echo "  API:  http://$(hostname):8002"
+          echo "  UI:   http://$(hostname):3082"
           echo ""
-          echo "Health: http://$(hostname):8000/health"
+          echo "Health: http://$(hostname):8002/health"
           echo "=========================================="

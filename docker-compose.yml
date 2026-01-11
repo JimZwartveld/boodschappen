@@ -12,7 +12,7 @@ services:
     container_name: boodschappen-api
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8002:8000"
     volumes:
       # Persistent data volume - survives container restarts and updates
       - boodschappen-data:/app/data
@@ -43,7 +43,7 @@ services:
     container_name: boodschappen-ui
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "3082:80"
     depends_on:
       boodschappen-api:
         condition: service_healthy

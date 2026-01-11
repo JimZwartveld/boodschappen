@@ -422,7 +422,7 @@ services:
   groceries-api:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "8002:8000"
     volumes:
       - groceries-data:/app/data
     environment:
@@ -436,7 +436,7 @@ services:
   groceries-ui:
     build: ./frontend
     ports:
-      - "80:80"
+      - "3082:80"
     depends_on:
       - groceries-api
 
