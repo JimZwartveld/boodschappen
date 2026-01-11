@@ -53,8 +53,8 @@ jobs:
       - name: Start services
         run: |
           # Load .env from server if exists, otherwise use defaults
-          if [ -f /apps/boodschappen/.env ]; then
-            docker-compose --env-file /apps/boodschappen/.env up -d
+          if [ -f /home/jzwartveld/apps/boodschappen/.env ]; then
+            docker-compose --env-file /home/jzwartveld/apps/boodschappen/.env up -d
           else
             docker-compose up -d
           fi
