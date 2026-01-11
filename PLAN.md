@@ -45,14 +45,17 @@ boodschappen/
 │   │   ├── database.py             # DB connection & session
 │   │   ├── models/
 │   │   │   ├── __init__.py
+│   │   │   ├── category.py         # Category model
 │   │   │   ├── item.py             # Item model
 │   │   │   └── session.py          # Shopping session models
 │   │   ├── schemas/
 │   │   │   ├── __init__.py
+│   │   │   ├── category.py         # Category schemas
 │   │   │   ├── item.py             # Pydantic schemas
 │   │   │   └── session.py
 │   │   ├── routers/
 │   │   │   ├── __init__.py
+│   │   │   ├── categories.py       # /api/v1/categories endpoints
 │   │   │   ├── items.py            # /api/v1/items endpoints
 │   │   │   ├── sessions.py         # /api/v1/sessions endpoints
 │   │   │   ├── export.py           # /api/v1/export endpoints
@@ -127,10 +130,11 @@ boodschappen/
    - Create Dockerfile with multi-stage build
 
 2. **Database Models**
+   - `categories` table with default grocery categories
    - `items` table with all fields from requirements
    - `sessions` table
    - `session_items` junction table
-   - Initial migration
+   - Initial migration with seed categories
 
 3. **Item Parser Service**
    - Parse quantities: `2x bread`, `bread 2x`
@@ -178,19 +182,27 @@ boodschappen/
    - PWA manifest and service worker
 
 2. **Components**
-   - Item list with sections (open/checked/snoozed)
+   - Item list grouped by category (with icons)
+   - Uncategorized items section at bottom
+   - Collapsible category sections
    - Checkbox interaction (immediate update)
-   - Inline edit (quantity, notes)
-   - Add item form with quick parsing
+   - Inline edit (quantity, notes, category)
+   - Add item form with optional category picker
    - Export buttons (AH/Jumbo)
    - Session history view
 
-3. **API Integration**
+3. **Category UI Features**
+   - Items grouped under category headers with emoji icons
+   - Drag-and-drop to change category (optional)
+   - Quick category assignment via long-press/swipe
+   - Filter view by category
+
+4. **API Integration**
    - React Query for data fetching
    - Optimistic updates for checkboxes
    - Error handling and offline states
 
-4. **Mobile Optimization**
+5. **Mobile Optimization**
    - Large tap targets
    - Swipe gestures (optional)
    - Pull-to-refresh
@@ -214,14 +226,21 @@ boodschappen/
 **Goal**: ChatGPT integration via MCP tools
 
 1. **MCP Server**
-   - `list_items` tool
-   - `add_items` tool
+   - `list_categories` tool - Get available categories
+   - `list_items` tool - With category filter
+   - `add_items` tool - With category parameter (LLM should categorize)
    - `check_item` / `uncheck_item` tools
    - `remove_item` tool
+   - `set_item_category` tool - Categorize existing items
    - `export_store` tool
    - Session management tools
 
-2. **Authentication**
+2. **LLM Category Instructions**
+   - MCP tool descriptions guide LLM to categorize items
+   - Example: "When adding items, always include the appropriate category"
+   - Fallback to "other" if uncertain
+
+3. **Authentication**
    - Token-based auth for MCP
    - Cloudflare Tunnel setup (if needed)
 
@@ -248,12 +267,38 @@ boodschappen/
 
 ## 4. Database Schema
 
+### categories
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | UUID | PK | Unique identifier |
+| name | VARCHAR(100) | NOT NULL, UNIQUE | Category name |
+| name_nl | VARCHAR(100) | NOT NULL | Dutch name for display |
+| icon | VARCHAR(10) | NULLABLE | Emoji icon for UI |
+| sort_order | INTEGER | DEFAULT 0 | Display order in UI |
+| created_at | DATETIME | NOT NULL | Creation timestamp |
+
+**Default Categories (seeded on first run):**
+| name | name_nl | icon |
+|------|---------|------|
+| produce | Groente & Fruit | 🥬 |
+| dairy | Zuivel | 🥛 |
+| meat | Vlees & Vis | 🥩 |
+| bakery | Brood & Gebak | 🍞 |
+| frozen | Diepvries | 🧊 |
+| pantry | Voorraadkast | 🥫 |
+| beverages | Dranken | 🥤 |
+| snacks | Snacks & Snoep | 🍿 |
+| household | Huishouden | 🧹 |
+| personal_care | Verzorging | 🧴 |
+| other | Overig | 📦 |
+
 ### items
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | id | UUID | PK | Unique identifier |
 | name_raw | VARCHAR(255) | NOT NULL | Original input name |
 | name_norm | VARCHAR(255) | NOT NULL, INDEX | Normalized name for dedup |
+| category_id | UUID | FK, NULLABLE | Reference to category |
 | qty | FLOAT | DEFAULT 1 | Quantity |
 | unit | VARCHAR(50) | NULLABLE | Unit (L, g, kg, etc.) |
 | notes | TEXT | NULLABLE | Additional notes |
@@ -263,6 +308,11 @@ boodschappen/
 | created_at | DATETIME | NOT NULL | Creation timestamp |
 | updated_at | DATETIME | NOT NULL | Last update |
 | last_added_at | DATETIME | NOT NULL | Last time item was added |
+
+**Category Assignment:**
+- **Via LLM/MCP**: Category provided in request, or LLM suggests based on item name
+- **Via Siri**: Defaults to null (uncategorized), can be assigned later in UI
+- **Via UI**: User can select category when adding or editing
 
 ### sessions
 | Column | Type | Constraints | Description |
@@ -290,13 +340,18 @@ boodschappen/
 
 ### Base URL: `/api/v1`
 
+### Categories
+```
+GET    /categories               # List all categories
+```
+
 ### Items
 ```
-GET    /items                    # List items (filter: status, store)
-POST   /items:add                # Add items from text
+GET    /items                    # List items (filter: status, store, category)
+POST   /items:add                # Add items from text (with optional category)
 POST   /items/{id}:check         # Mark as checked
 POST   /items/{id}:uncheck       # Mark as open
-PATCH  /items/{id}               # Update item details
+PATCH  /items/{id}               # Update item details (including category)
 DELETE /items/{id}               # Remove item
 ```
 
