@@ -117,8 +117,8 @@ jobs:
 
       - name: Create data directory if not exists
         run: |
-          mkdir -p /opt/boodschappen/data
-          chmod 755 /opt/boodschappen/data
+          mkdir -p /apps/boodschappen/data
+          chmod 755 /apps/boodschappen/data
 
       - name: Stop existing services
         run: docker compose -f docker-compose.yml down || true
@@ -126,8 +126,8 @@ jobs:
       - name: Start services
         run: |
           # Load .env from server if exists, otherwise use defaults
-          if [ -f /opt/boodschappen/.env ]; then
-            docker compose -f docker-compose.yml --env-file /opt/boodschappen/.env up -d
+          if [ -f /apps/boodschappen/.env ]; then
+            docker compose -f docker-compose.yml --env-file /apps/boodschappen/.env up -d
           else
             docker compose -f docker-compose.yml up -d
           fi
