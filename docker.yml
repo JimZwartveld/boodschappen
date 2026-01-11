@@ -1,0 +1,193 @@
+name: Build and Deploy Web App
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - development
+      - release
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # =============================================================================
+  # Build Development Images (on development branch)
+  # =============================================================================
+  build-dev:
+    name: Build Dev Images
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/development' || github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from git
+        id: version
+        run: |
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "0.0.0.dev0")
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Using version: $VERSION"
+
+      - name: Build backend dev image
+        run: |
+          docker build \
+            -t weldcap-backend-dev:${{ steps.version.outputs.version }} \
+            -t weldcap-backend-dev:latest \
+            -f backend/Dockerfile.dev \
+            --build-arg WELDCAP_FROM_PYPI=true \
+            --build-arg CF_ACCESS_CLIENT_ID=${{ secrets.CF_ACCESS_CLIENT_ID }} \
+            --build-arg CF_ACCESS_CLIENT_SECRET=${{ secrets.CF_ACCESS_CLIENT_SECRET }} \
+            --build-arg PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} \
+            --build-arg PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} \
+            backend/
+
+      - name: Build frontend dev image
+        run: |
+          docker build \
+            -t weldcap-frontend-dev:${{ steps.version.outputs.version }} \
+            -t weldcap-frontend-dev:latest \
+            --build-arg VITE_API_BASE=/api \
+            --build-arg VITE_DOCS_URL=https://docs.jimzwartveld.com/weldcap \
+            frontend/
+
+      - name: Test docker-compose config
+        run: docker-compose -f docker-compose.dev.yml config
+
+  # =============================================================================
+  # Deploy Development (on development branch)
+  # =============================================================================
+  deploy-dev:
+    name: Deploy Dev Environment
+    needs: build-dev
+    runs-on: self-hosted
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Stop existing dev services
+        run: docker-compose -f docker-compose.dev.yml down || true
+
+      - name: Start dev services
+        run: docker-compose -f docker-compose.dev.yml up -d
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting for services to start..."
+          sleep 15
+
+          if docker-compose -f docker-compose.dev.yml ps | grep -q "Up"; then
+            echo "Dev services are running"
+            echo "Backend: http://localhost:8001"
+            echo "Frontend: http://localhost:5174"
+          else
+            echo "Services failed to start"
+            docker-compose -f docker-compose.dev.yml logs
+            exit 1
+          fi
+
+      - name: Show service logs
+        if: always()
+        run: docker-compose -f docker-compose.dev.yml logs --tail=50
+
+  # =============================================================================
+  # Build Production Images (on version tags only)
+  # =============================================================================
+  build-prod:
+    name: Build Prod Images
+    runs-on: self-hosted
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from git
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "0.0.0")
+            VERSION="${VERSION#v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Using version: $VERSION"
+
+      - name: Build backend prod image
+        run: |
+          docker build \
+            -t weldcap-backend:${{ steps.version.outputs.version }} \
+            -t weldcap-backend:latest \
+            -f backend/Dockerfile \
+            --build-arg CF_ACCESS_CLIENT_ID=${{ secrets.CF_ACCESS_CLIENT_ID }} \
+            --build-arg CF_ACCESS_CLIENT_SECRET=${{ secrets.CF_ACCESS_CLIENT_SECRET }} \
+            --build-arg PYPI_USERNAME=${{ secrets.PYPI_USERNAME }} \
+            --build-arg PYPI_PASSWORD=${{ secrets.PYPI_PASSWORD }} \
+            backend/
+
+      - name: Build frontend prod image
+        run: |
+          docker build \
+            -t weldcap-frontend:${{ steps.version.outputs.version }} \
+            -t weldcap-frontend:latest \
+            --build-arg VITE_API_BASE=/api \
+            --build-arg VITE_DOCS_URL=https://docs.jimzwartveld.com/weldcap \
+            frontend/
+
+      - name: Test docker-compose config
+        run: docker-compose -f docker-compose.prod.yml config
+
+  # =============================================================================
+  # Deploy Production (on version tags only)
+  # =============================================================================
+  deploy-prod:
+    name: Deploy Prod Environment
+    needs: build-prod
+    runs-on: self-hosted
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Stop existing prod services
+        run: docker-compose -f docker-compose.prod.yml down || true
+
+      - name: Start prod services
+        run: docker-compose -f docker-compose.prod.yml up -d
+
+      - name: Verify deployment
+        run: |
+          echo "Waiting for services to start..."
+          sleep 15
+
+          if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
+            echo "Production services are running"
+            echo "Available at: https://weldcap.jimzwartveld.com"
+          else
+            echo "Services failed to start"
+            docker-compose -f docker-compose.prod.yml logs
+            exit 1
+          fi
+
+      - name: Show service logs
+        if: always()
+        run: docker-compose -f docker-compose.prod.yml logs --tail=50
