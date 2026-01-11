@@ -405,45 +405,62 @@ GET    /health                   # Health check
 
 ---
 
-## 6. Parser Patterns
+## 6. Parser Patterns (Dutch Input)
 
-The parser will handle these input patterns:
+The parser handles Dutch input naturally - it recognizes patterns, not language:
 
 | Input | Parsed |
 |-------|--------|
-| `bread` | qty=1, unit=null, name="bread" |
-| `2x bread` | qty=2, unit=null, name="bread" |
-| `bread 2x` | qty=2, unit=null, name="bread" |
-| `milk 2L` | qty=2, unit="L", name="milk" |
-| `chicken 800g` | qty=800, unit="g", name="chicken" |
-| `2 limes` | qty=2, unit=null, name="limes" |
-| `bread, milk, eggs` | 3 items, each qty=1 |
-| `bread\nmilk\neggs` | 3 items, each qty=1 |
+| `brood` | qty=1, unit=null, name="brood" |
+| `2x brood` | qty=2, unit=null, name="brood" |
+| `brood 2x` | qty=2, unit=null, name="brood" |
+| `melk 2L` | qty=2, unit="L", name="melk" |
+| `kip 800g` | qty=800, unit="g", name="kip" |
+| `gehakt 500gr` | qty=500, unit="g", name="gehakt" |
+| `3 limoenen` | qty=3, unit=null, name="limoenen" |
+| `2 stuks paprika` | qty=2, unit=null, name="paprika" |
+| `brood, melk, eieren` | 3 items, each qty=1 |
+| `brood\nmelk\neieren` | 3 items, each qty=1 |
+| `pak hagelslag` | qty=1, unit=null, name="pak hagelslag" |
+
+### Supported Units
+| Pattern | Normalized |
+|---------|------------|
+| `L`, `l`, `liter` | L |
+| `ml`, `mL` | ml |
+| `g`, `gr`, `gram` | g |
+| `kg`, `kilo` | kg |
+| `stuks`, `stuk`, `st` | (removed, qty only) |
+| `pak`, `pakken` | kept in name |
+| `blik`, `blikken` | kept in name |
+| `fles`, `flessen` | kept in name |
 
 ---
 
 ## 7. iOS Shortcuts Design
 
-### 1. Add to Groceries (Boodschappen toevoegen)
+### 1. Boodschappen toevoegen
 ```
 Trigger: "Hey Siri, boodschappen toevoegen [items]"
+         "Hey Siri, voeg brood toe aan boodschappen"
 
 Flow:
 1. If input provided → use input
-2. Else → Dictate text prompt
+2. Else → Dictate text prompt ("Wat wil je toevoegen?")
 3. POST to /api/v1/items:add
 4. Parse response
-5. Speak: "Added [count] items: [names]"
+5. Speak: "[count] items toegevoegd: [names]"
 ```
 
-### 2. Show Groceries (Boodschappen tonen)
+### 2. Boodschappen tonen
 ```
 Trigger: "Hey Siri, toon boodschappen"
+         "Hey Siri, wat staat er op de boodschappenlijst?"
 
 Flow:
 1. GET /api/v1/items?status=open
 2. Format as readable list
-3. Show in Quick Look
+3. Show in Quick Look or speak summary
 ```
 
 ### 3. Export AH
