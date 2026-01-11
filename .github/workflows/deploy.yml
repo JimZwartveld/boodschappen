@@ -69,7 +69,7 @@ jobs:
             frontend/
 
       - name: Test docker-compose config
-        run: docker compose -f docker-compose.yml config
+        run: docker-compose -f docker-compose.yml config
 
   # =============================================================================
   # Run Tests
@@ -121,17 +121,17 @@ jobs:
           chmod 755 /opt/boodschappen/data
 
       - name: Stop existing services
-        run: docker compose -f docker-compose.yml down || true
+        run: docker-compose -f docker-compose.yml down || true
 
       - name: Start services
         run: |
-          docker compose -f docker-compose.yml up -d
+          docker-compose -f docker-compose.yml up -d
         env:
           APP_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Run database migrations
         run: |
-          docker compose exec -T boodschappen-api alembic upgrade head || echo "Migrations skipped or not yet configured"
+          docker-compose exec -T boodschappen-api alembic upgrade head || echo "Migrations skipped or not yet configured"
 
       - name: Verify deployment
         run: |
@@ -139,11 +139,11 @@ jobs:
           sleep 10
 
           # Check if containers are running
-          if docker compose -f docker-compose.yml ps | grep -q "Up"; then
+          if docker-compose -f docker-compose.yml ps | grep -q "Up"; then
             echo "Services are running"
           else
             echo "Services failed to start"
-            docker compose -f docker-compose.yml logs
+            docker-compose -f docker-compose.yml logs
             exit 1
           fi
 
@@ -159,7 +159,7 @@ jobs:
 
       - name: Show service logs
         if: always()
-        run: docker compose -f docker-compose.yml logs --tail=30
+        run: docker-compose -f docker-compose.yml logs --tail=30
 
       - name: Deployment summary
         run: |
