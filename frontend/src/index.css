@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Safe area handling for iOS */
+html {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Mobile-first touch targets */
+button,
+a,
+input[type="checkbox"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Remove tap delay on iOS */
+* {
+  touch-action: manipulation;
+}
+
+/* Custom checkbox styling */
+input[type="checkbox"] {
+  @apply w-6 h-6 rounded border-2 border-gray-300 text-primary-600 focus:ring-primary-500;
+}
+
+input[type="checkbox"]:checked {
+  @apply bg-primary-600 border-primary-600;
+}
+
+/* Pull to refresh indicator */
+.ptr-loading {
+  @apply flex items-center justify-center py-4 text-gray-500;
+}
